@@ -29,17 +29,25 @@ int main(int argc , char *argv[]) {
 
     int err = connect(sockfd,(struct sockaddr *)&info,sizeof(info));
     if(err==-1){
-        prinatf("Connection error");
+        printf("Connection error");
     }
 
 
-    //Send a message to server
-    char message[] = {"Hi there"};
+    char pre_message[] = {"client says: "};
+    char message[100];
     char receiveMessage[100] = {};
-    send(sockfd,message,sizeof(message),0);
-     recv(sockfd,receiveMessage,sizeof(receiveMessage),0);
-
-    printf("%s",receiveMessage);
+    char receiveMessage2[100] = {};
+    
+    while(1) {
+        //Send message to server
+        scanf("%s", message);
+        fflush(stdin);
+        send(sockfd,pre_message,sizeof(pre_message),0);
+        recv(sockfd,receiveMessage,sizeof(receiveMessage),0);
+        send(sockfd,message,sizeof(message),0);
+        recv(sockfd,receiveMessage2,sizeof(receiveMessage2),0);
+        printf("%s%s\n",receiveMessage, receiveMessage2);
+    }
     printf("close Socket\n");
     close(sockfd);
     return 0;
