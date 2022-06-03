@@ -7,11 +7,9 @@
 #include <netinet/in.h>
 
 
-int main(int argc , char *argv[])
-{
-
+int main(int argc , char *argv[]) {
     //socket的建立
-    int sockfd = 0;
+    int sockfd = 0;    
     sockfd = socket(AF_INET , SOCK_STREAM , 0);
 
     if (sockfd == -1){
