@@ -35,7 +35,9 @@ int main(int argc , char *argv[]) {
         clientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &c_addrlen);
         getpeername(clientSockfd, (struct sockaddr*) &client_addr, &c_addrlen);
         printf("connect to client %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-        add_user(&userlist, client_addr, clientSockfd);
+        //add_user(&userlist, client_addr, clientSockfd);
+        struct UserNode *newuser = malloc(sizeof(struct UserNode));
+        printf("tag");
     }
     return 0;
 }
@@ -57,8 +59,6 @@ void *user_handle(void *param) {
 
 void add_user(struct UserList *ulist, struct sockaddr_in addr, int sockfd) {
     printf("%d\n",sizeof(struct UserNode));
-    malloc(sizeof(struct UserNode));
-    printf("bp5");
     struct UserNode *newuser = malloc(sizeof(struct UserNode));
     printf("bp6");
     memset(&newuser, 0, sizeof(struct UserNode));
