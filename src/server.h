@@ -7,12 +7,12 @@
 
 struct UserNode;
 struct UserList {
-    struct *UserNode firstUser;
-    struct *UserNode lastUser;
+    struct UserNode *firstUser;
+    struct UserNode *lastUser;
     int length;
 };
 struct UserNode {
-    struct *UserNode next;
+    struct UserNode *next;
     pthread_t userThread;
     struct sockaddr_in address;
     int sockfd;

@@ -9,7 +9,6 @@
 #include "server.h"
 
 int sockfd = 0;
-int forClientSockfd = 0;
 struct UserList userlist;
 char inputBuffer[128] = {};
 char message[128] = {"server says: "};
@@ -17,13 +16,13 @@ char message[128] = {"server says: "};
 int main(int argc , char *argv[]) {
     //create socket
     sockfd = socket(AF_INET , SOCK_STREAM , 0);
-
+    
     if (sockfd == -1){
         printf("Fail to create a socket.");
     }
-
+    
     //socket setting
-    struct sockaddr_in server_addr, client_addr;
+    struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
     
     server_addr.sin_family = PF_INET;
@@ -35,17 +34,15 @@ int main(int argc , char *argv[]) {
     
     // add clients
     while(1){
-        forClientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &sizeof(client_addr));
-        getpeername((forClientSockfd, (struct sockaddr*)client_addr, sizeof(client_addr));
+        struct sockaddr_in client_addr;
+        int clientSockfd = 0;
+        clientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &sizeof(client_addr));
+        getpeername((clientSockfd, (struct sockaddr*)client_addr, sizeof(client_addr));
         printf("connect to client %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         
-        //TODO add client into linkedlist
-        add_user(&userlist, forClientSockfd)
+        add_user(&userlist, client_addr, clientSockfd)
         
-        
-        pthread_t tid;
-        userlist->lastUser.userThread = tid;
-        if(pthread_create(&tid, NULL, (void *)user_handle, NULL) != 0) {
+        if(pthread_create(&(userlist.lastUser->userThread), NULL, (void *)user_handle, NULL) != 0) {
             printf("thread creation error");
             exit(-1);
         }
