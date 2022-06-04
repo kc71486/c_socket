@@ -10,7 +10,7 @@
 #include "client.h"
 
 const char *ADDRESS = "127.0.0.1";
-char NICKNAME[20];
+char nickname[20];
 char totalmessage[80];
 char message[60];
 char receiveMessage[128] = {};
@@ -35,7 +35,7 @@ int main(int argc , char *argv[]) {
     server_addr.sin_port = htons(8700);
     
     //connect to socket
-    int err = connect(sockfd,(struct sockaddr *)&server_addr, s_addrlen)
+    int err = connect(sockfd,(struct sockaddr *)&server_addr, s_addrlen);
     if(err == -1){
         printf("Connection error");
     }
