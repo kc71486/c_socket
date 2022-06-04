@@ -7,26 +7,25 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include "client.h"
 
 const char *ADDRESS = "127.0.0.1";
-const char *NICKNAME = "client1";
+char NICKNAME[20];
 
-char pre_message[] = {"client says: "};
-char message[100];
-char receiveMessage[100] = {};
-char receiveMessage2[100] = {};
+char totalmessage[80];
+char message[60];
+char receiveMessage[128] = {};
 
 void send_func() {
-    scanf("%s", message);
+    fgets(message, sizeof(message), stdin);
     fflush(stdin);
-    send(sockfd,pre_message,sizeof(pre_message),0);
-    send(sockfd,message,sizeof(message),0);
+    snprintf(totalmessage, sizeof(totalmessage), "<%s> %s", NICKNAME, message);
+    send(sockfd, totalmessage, sizeof(totalmessage),0);
 }
 
 void recv_func() {
     recv(sockfd,receiveMessage,sizeof(receiveMessage),0);
-    recv(sockfd,receiveMessage2,sizeof(receiveMessage2),0);
-     printf("%s%s\n",receiveMessage, receiveMessage2);
+    printf("%s\n",receiveMessage);
 }
 
 int main(int argc , char *argv[]) {
@@ -53,14 +52,18 @@ int main(int argc , char *argv[]) {
         printf("Connection error");
     }
     
+    //enter nickname
+    printf("enter your nickname: ");
+    fgets(nickname, sizeof(nickname), stdin);
+    fflush(stdin);
+    
     //get name
     getpeername(sockfd, (struct sockaddr*)server_addr, sizeof(server_addr));
     getsockname(sockfd, (struct sockaddr*)client_addr, sizeof(client_addr));
     printf("connect to server %s:%d\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
-    printf("you are %s your ip is%s:%d\n", NICKNAME, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+    printf("you are %s your ip is%s:%d\n", nickname, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+    //send(sockfd, nickname, sizeof(nickname), 0);
 
-    send(sockfd, NICKNAME, sizeof(NICKNAME), 0);
-    
     pthread_t send_thread, recv_thread;
     if(pthread_create(&send_thread, NULL, (void *)send_func, NULL) != 0) {
         printf("thread creation error");
