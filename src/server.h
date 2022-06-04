@@ -17,6 +17,6 @@ struct UserNode {
     struct sockaddr_in address;
     int sockfd;
 };
-void user_handle();
+void *user_handle(void *);
 void add_user(struct UserList *, struct sockaddr_in, int);
 #endif
