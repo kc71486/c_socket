@@ -11,43 +11,31 @@
 
 const char *ADDRESS = "127.0.0.1";
 char NICKNAME[20];
-
 char totalmessage[80];
 char message[60];
 char receiveMessage[128] = {};
-
-void send_func() {
-    fgets(message, sizeof(message), stdin);
-    fflush(stdin);
-    snprintf(totalmessage, sizeof(totalmessage), "<%s> %s", NICKNAME, message);
-    send(sockfd, totalmessage, sizeof(totalmessage),0);
-}
-
-void recv_func() {
-    recv(sockfd,receiveMessage,sizeof(receiveMessage),0);
-    printf("%s\n",receiveMessage);
-}
+int sockfd = 0;
 
 int main(int argc , char *argv[]) {
-    //create socket
-    int sockfd = 0;    
+    //create socket 
     sockfd = socket(AF_INET , SOCK_STREAM , 0);
-
     if (sockfd == -1){
         printf("Fail to create a socket.");
     }
-
+    
     //socket setting
     struct sockaddr_in server_addr, client_addr;
-    memset(&server_addr, 0, sizeof(server_addr));
-    memset(&client_addr, 0, sizeof(client_addr));
+    int s_addrlen = sizeof(server_addr); //for getpeername()
+    int c_addrlen = sizeof(client_addr); //for getsockname()
+    memset(&server_addr, 0, s_addrlen);
+    memset(&client_addr, 0, c_addrlen);
     
     server_addr.sin_family = PF_INET;
     server_addr.sin_addr.s_addr = inet_addr(ADDRESS);
     server_addr.sin_port = htons(8700);
     
     //connect to socket
-    int err = connect(sockfd,(struct sockaddr *)&server_addr,sizeof(server_addr))
+    int err = connect(sockfd,(struct sockaddr *)&server_addr, s_addrlen)
     if(err == -1){
         printf("Connection error");
     }
@@ -58,11 +46,11 @@ int main(int argc , char *argv[]) {
     fflush(stdin);
     
     //get name
-    getpeername(sockfd, (struct sockaddr*)server_addr, sizeof(server_addr));
-    getsockname(sockfd, (struct sockaddr*)client_addr, sizeof(client_addr));
+    getpeername(sockfd, (struct sockaddr*)&server_addr, &s_addrlen);
+    getsockname(sockfd, (struct sockaddr*)&client_addr, &c_addrlen);
     printf("connect to server %s:%d\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
     printf("you are %s your ip is%s:%d\n", nickname, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-    //send(sockfd, nickname, sizeof(nickname), 0);
+    ////send(sockfd, nickname, sizeof(nickname), 0);
 
     pthread_t send_thread, recv_thread;
     if(pthread_create(&send_thread, NULL, (void *)send_func, NULL) != 0) {
@@ -81,4 +69,16 @@ int main(int argc , char *argv[]) {
     }
     close(sockfd);
     return 0;
+}
+
+void send_func() {
+    fgets(message, sizeof(message), stdin);
+    fflush(stdin);
+    snprintf(totalmessage, sizeof(totalmessage), "<%s> %s", NICKNAME, message);
+    send(sockfd, totalmessage, sizeof(totalmessage),0);
+}
+
+void recv_func() {
+    recv(sockfd,receiveMessage,sizeof(receiveMessage),0);
+    printf("%s\n",receiveMessage);
 }

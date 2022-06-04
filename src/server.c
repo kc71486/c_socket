@@ -16,28 +16,28 @@ char message[128] = {"server says: "};
 int main(int argc , char *argv[]) {
     //create socket
     sockfd = socket(AF_INET , SOCK_STREAM , 0);
-    
     if (sockfd == -1){
         printf("Fail to create a socket.");
     }
     
     //socket setting
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(server_addr));
+    struct sockaddr_in server_addr, client_addr;
+    int s_addrlen = sizeof(server_addr);
+    int c_addrlen = sizeof(client_addr); //for accept() and getpeername()
+    memset(&server_addr, 0, s_addrlen);
     
     server_addr.sin_family = PF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(8700);
     
-    bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    bind(sockfd, (struct sockaddr *)&server_addr, s_addrlen);
     listen(sockfd,5);
     
     // add clients
     while(1){
-        struct sockaddr_in client_addr;
         int clientSockfd = 0;
-        clientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &sizeof(client_addr));
-        getpeername((clientSockfd, (struct sockaddr*)client_addr, sizeof(client_addr));
+        clientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &c_addrlen);
+        getpeername(clientSockfd, (struct sockaddr*) &client_addr, c_addrlen);
         printf("connect to client %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         
         add_user(&userlist, client_addr, clientSockfd)
