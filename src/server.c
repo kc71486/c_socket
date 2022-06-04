@@ -56,6 +56,8 @@ void *user_handle(void *param) {
 }
 
 void add_user(struct UserList *ulist, struct sockaddr_in addr, int sockfd) {
+    malloc(sizeof(struct UserNode));
+    printf("bp5");
     struct UserNode *newuser = malloc(sizeof(struct UserNode));
     printf("bp6");
     memset(&newuser, 0, sizeof(struct UserNode));
