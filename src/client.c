@@ -74,7 +74,7 @@ int main(int argc , char *argv[]) {
 void send_func() {
     fgets(message, sizeof(message), stdin);
     fflush(stdin);
-    snprintf(totalmessage, sizeof(totalmessage), "<%s> %s", NICKNAME, message);
+    snprintf(totalmessage, sizeof(totalmessage), "<%s> %s", nickname, message);
     send(sockfd, totalmessage, sizeof(totalmessage),0);
 }
 
