@@ -24,22 +24,16 @@ int main(int argc , char *argv[]) {
     int s_addrlen = sizeof(server_addr);
     int c_addrlen = sizeof(client_addr); //for accept() and getpeername()
     memset(&server_addr, 0, s_addrlen);
-    printf("bp1");
     server_addr.sin_family = PF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(8700);
-    printf("bp2");
     bind(sockfd, (struct sockaddr *)&server_addr, s_addrlen);
     listen(sockfd,5);
-    printf("bp3");
     // add clients
     while(1){
         int clientSockfd = 0;
-        printf("bp4");
         clientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &c_addrlen);
-        printf("bp5");
         getpeername(clientSockfd, (struct sockaddr*) &client_addr, &c_addrlen);
-        printf("bp6");
         printf("connect to client %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         add_user(&userlist, client_addr, clientSockfd);
     }
@@ -62,7 +56,8 @@ void *user_handle(void *param) {
 }
 
 void add_user(struct UserList *ulist, struct sockaddr_in addr, int sockfd) {
-    struct UserNode *newuser = calloc(1, sizeof(struct UserNode));
+    struct UserNode *newuser = malloc(sizeof(struct UserNode));
+    memset(&newuser, 0, sizeof(*newuser));
     printf("bp7");
     newuser->address = addr;
     newuser->sockfd = sockfd;
