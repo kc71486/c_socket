@@ -19,4 +19,5 @@ struct UserNode {
 };
 void *user_handle(void *);
 void add_user(struct UserList *, struct sockaddr_in, int);
+void send_all();
 #endif

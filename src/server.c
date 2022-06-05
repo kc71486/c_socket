@@ -13,10 +13,12 @@ int sockfd = 0;
 struct UserList userlist;
 
 int main(int argc , char *argv[]) {
+    //initialize
+    memset(&userlist, 0, sizeof(struct UserList));
     //create socket
     sockfd = socket(AF_INET , SOCK_STREAM , 0);
     if (sockfd == -1){
-        printf("Fail to create a socket.");
+        printf("Fail to create a socket.\n");
     }
     
     //socket setting
@@ -35,9 +37,7 @@ int main(int argc , char *argv[]) {
         clientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &c_addrlen);
         getpeername(clientSockfd, (struct sockaddr*) &client_addr, &c_addrlen);
         printf("connect to client %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-        //add_user(&userlist, client_addr, clientSockfd);
-        struct UserNode *newuser = malloc(sizeof(struct UserNode));
-        printf("tag");
+        add_user(&userlist, client_addr, clientSockfd);
     }
     return 0;
 }
@@ -45,33 +45,51 @@ int main(int argc , char *argv[]) {
 void *user_handle(void *param) {
     struct UserNode *user = (struct UserNode *)param;
     char inputBuffer[128] = {};
-    char message[128] = {"server says: "};
+    char message[128] = {};
+    char nickname[20];
+    
+    recv(user->sockfd, inputBuffer, sizeof(inputBuffer), 0);
+    strncpy(nickname, inputBuffer, sizeof(nickname));
+    snprintf(message, sizeof(message), "[%s has joined]", nickname);
+    send_all(&userlist, message, sizeof(message));
     
     while(1) {
         recv(user->sockfd, inputBuffer, sizeof(inputBuffer), 0);
-        snprintf(message, sizeof(message), "repeat: %s\n", inputBuffer);
-        send(user->sockfd, message, sizeof(message), 0);
-        printf("%s\n",message);
+        snprintf(message, sizeof(message), "<%s> %s", nickname, inputBuffer);
+        send_all(&userlist, message, sizeof(message));
     }
     
     return NULL;
 }
 
+void send_all(struct UserList *ulist, char *message, int messageSize) {
+    struct UserNode *currentUser = ulist->firstUser;
+    while(currentUser != NULL) {
+        send(currentUser->sockfd, message, messageSize, 0);
+        currentUser = currentUser->next;
+    }
+    printf("%s\n", message);
+}
+
 void add_user(struct UserList *ulist, struct sockaddr_in addr, int sockfd) {
-    printf("%d\n",sizeof(struct UserNode));
-    struct UserNode *newuser = malloc(sizeof(struct UserNode));
-    printf("bp6");
-    memset(&newuser, 0, sizeof(struct UserNode));
-    printf("bp7");
+    struct UserNode *newuser = (struct UserNode *) calloc(1, sizeof(struct UserNode));
+    //printf("bp7\n");
     newuser->address = addr;
     newuser->sockfd = sockfd;
-    printf("bp8");
-    ulist->lastUser->next = newuser;
-    ulist->lastUser = newuser;
-    ulist->length += 1;
-    printf("bp9");
+    //printf("bp8\n");
+    if(ulist->lastUser == NULL) {
+        ulist->firstUser = newuser;
+        ulist->lastUser = newuser;
+        ulist->length = 1;
+    }
+    else {
+        ulist->lastUser->next = newuser;
+        ulist->lastUser = newuser;
+        ulist->length += 1;
+    }
+    //printf("bp9\n");
     if(pthread_create(&(userlist.lastUser->userThread), NULL, user_handle, (void *) newuser) != 0) {
-        printf("thread creation error");
+        printf("thread creation error\n");
         exit(-1);
     }
 }
