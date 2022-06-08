@@ -18,6 +18,8 @@ struct UserNode {
     struct sockaddr_in address;
     int sockfd;
 };
+void write_message(char *message);
+void send_all_handler();
 void *user_handle(void *);
 void add_user(struct UserList *, struct sockaddr_in, int);
 void send_all();

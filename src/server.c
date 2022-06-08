@@ -11,6 +11,7 @@
 
 int sockfd = 0;
 struct UserList userlist;
+char allmessage_arr[50][128];
 
 int main(int argc , char *argv[]) {
     //initialize
@@ -31,7 +32,17 @@ int main(int argc , char *argv[]) {
     server_addr.sin_port = htons(8700);
     bind(sockfd, (struct sockaddr *)&server_addr, s_addrlen);
     listen(sockfd,5);
+    // add send all
+    
+    pthread_t send_all_thread;
+    if(pthread_create(&(send_all_thread), NULL, (void *) send_all_handler, (void *) newuser) != 0) {
+        printf("thread creation error\n");
+        exit(-1);
+    }
+    
+    
     // add clients
+    
     while(1){
         int clientSockfd = 0;
         clientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &c_addrlen);
@@ -62,7 +73,7 @@ void *user_handle(void *param) {
             break;
         }
         snprintf(message, sizeof(message), "<%s> %s", nickname, inputBuffer);
-        send_all(&userlist, message, sizeof(message));
+        write_message(message);
     }
     close(user->sockfd);
     if(userlist.firstUser == user) {
@@ -77,8 +88,8 @@ void *user_handle(void *param) {
         user->next->prev = user->prev;
         user->prev->next = user->next;
     }
-    
     //free(user);
+    
     return NULL;
 }
 
@@ -89,6 +100,36 @@ void send_all(struct UserList *ulist, char *message, int messageSize) {
         currentUser = currentUser->next;
     }
     printf("%s\n", message);
+}
+
+void write_message(char *message) {
+    int idx;
+    //write lock start
+    while(allmessage_arr[idx][0] != 0) {
+        idx += 1;
+    }
+    allmessage_arr[idx] = message;
+    //write lock end
+}
+
+void send_all_handler() {
+    struct UserList *ulist = userlist;
+    struct UserNode *currentUser = ulist->firstUser;
+    int idx;
+    while(1) {
+        //write lock start
+        while(currentUser != NULL) {
+            idx = 0;
+            while(allmessage_arr[idx][0] != 0) {
+                send(currentUser->sockfd, allmessage_arr[idx], sizeof(allmessage_arr[idx]), 0);
+                idx += 1;
+            }
+            currentUser = currentUser->next;
+        }
+        memset(&allmessage_arr, 0, sizeof(allmessage_arr));
+        //write lock end
+        printf("%s\n", message);
+    }
 }
 
 void add_user(struct UserList *ulist, struct sockaddr_in addr, int sockfd) {
