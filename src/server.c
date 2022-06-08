@@ -65,13 +65,13 @@ void *user_handle(void *param) {
         send_all(&userlist, message, sizeof(message));
     }
     close(user->sockfd);
-    if(userlist->firstUser == user) {
+    if(userlist.firstUser == user) {
         user->next->prev = NULL;
-        userlist->firstUser = user->next;
+        userlist.firstUser = user->next;
     }
-    else if(userlist->lastUser == user) {
+    else if(userlist.lastUser == user) {
         user->prev->next = NULL;
-        userlist->lastUser = user->prev;
+        userlist.lastUser = user->prev;
     }
     else {
         user->next->prev = user->prev;
