@@ -48,7 +48,7 @@ int main(int argc , char *argv[]) {
     getpeername(sockfd, (struct sockaddr*)&server_addr, &s_addrlen);
     getsockname(sockfd, (struct sockaddr*)&client_addr, &c_addrlen);
     printf("connect to server %s:%d\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
-    printf("you are %s your ip is%s:%d\n", nickname, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+    printf("you are %s your ip is %s:%d\n", nickname, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
     send(sockfd, nickname, sizeof(nickname), 0);
 
     pthread_t send_thread, recv_thread;

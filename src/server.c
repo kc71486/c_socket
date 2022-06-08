@@ -56,10 +56,14 @@ void *user_handle(void *param) {
     
     while(1) {
         recvbyte = recv(user->sockfd, inputBuffer, sizeof(inputBuffer), 0);
-        if(recvbyte == 0 || strcmp(inputBuffer, "?exit") == 0) break;
+        if(recvbyte == 0 || strcmp(inputBuffer, "?exit") == 0) {
+            snprintf(message, sizeof(message), "[%s has leaved]", nickname);
+            send_all(&userlist, message, sizeof(message))
+        };
         snprintf(message, sizeof(message), "<%s> %s", nickname, inputBuffer);
         send_all(&userlist, message, sizeof(message));
     }
+    close(user->sockfd);
     
     return NULL;
 }
