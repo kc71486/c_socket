@@ -47,6 +47,7 @@ void *user_handle(void *param) {
     char inputBuffer[128] = {};
     char message[128] = {};
     char nickname[20];
+    int recvbyte = 0;
     
     recv(user->sockfd, inputBuffer, sizeof(inputBuffer), 0);
     strncpy(nickname, inputBuffer, sizeof(nickname));
@@ -54,7 +55,8 @@ void *user_handle(void *param) {
     send_all(&userlist, message, sizeof(message));
     
     while(1) {
-        recv(user->sockfd, inputBuffer, sizeof(inputBuffer), 0);
+        recvbyte = recv(user->sockfd, inputBuffer, sizeof(inputBuffer), 0);
+        if(recvbyte == 0) break;
         snprintf(message, sizeof(message), "<%s> %s", nickname, inputBuffer);
         send_all(&userlist, message, sizeof(message));
     }
