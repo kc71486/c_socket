@@ -13,6 +13,7 @@ struct UserList {
 };
 struct UserNode {
     struct UserNode *next;
+    struct UserNode *prev;
     pthread_t userThread;
     struct sockaddr_in address;
     int sockfd;

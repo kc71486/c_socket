@@ -65,7 +65,9 @@ void *user_handle(void *param) {
         send_all(&userlist, message, sizeof(message));
     }
     close(user->sockfd);
-    
+    user->prev->next = user->next;
+    user->next->prev = user->prev;
+    //free(user);
     return NULL;
 }
 
@@ -80,21 +82,19 @@ void send_all(struct UserList *ulist, char *message, int messageSize) {
 
 void add_user(struct UserList *ulist, struct sockaddr_in addr, int sockfd) {
     struct UserNode *newuser = (struct UserNode *) calloc(1, sizeof(struct UserNode));
-    //printf("bp7\n");
     newuser->address = addr;
     newuser->sockfd = sockfd;
-    //printf("bp8\n");
     if(ulist->lastUser == NULL) {
         ulist->firstUser = newuser;
         ulist->lastUser = newuser;
         ulist->length = 1;
     }
     else {
+        newuser->prev = ulist->lastUser;
         ulist->lastUser->next = newuser;
         ulist->lastUser = newuser;
         ulist->length += 1;
     }
-    //printf("bp9\n");
     if(pthread_create(&(userlist.lastUser->userThread), NULL, user_handle, (void *) newuser) != 0) {
         printf("thread creation error\n");
         exit(-1);
