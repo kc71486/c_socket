@@ -59,6 +59,7 @@ void *user_handle(void *param) {
         if(recvbyte == 0 || strcmp(inputBuffer, "?exit") == 0) {
             snprintf(message, sizeof(message), "[%s has leaved]", nickname);
             send_all(&userlist, message, sizeof(message));
+            break;
         }
         snprintf(message, sizeof(message), "<%s> %s", nickname, inputBuffer);
         send_all(&userlist, message, sizeof(message));
