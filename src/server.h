@@ -14,18 +14,19 @@
 #include <semaphore.h>
 
 struct UserNode;
+struct ObjectSync;
 
-struct ObjectSync {
+typedef struct ObjectSync {
     sem_t writer;
     sem_t reader;
     int count;
-};
-struct UserList { //double linked list
+} ObjectSync;
+typedef struct UserList { //double linked list
     struct UserNode *firstUser;
     struct UserNode *lastUser;
     int length;
-};
-struct UserNode {
+} UserList;
+typedef struct UserNode {
     struct UserNode *next;
     struct UserNode *prev;
     int sockfd;
@@ -33,23 +34,22 @@ struct UserNode {
     pthread_t userThread;
     int connected;
     char message_buffer_arr[BUFFER_SIZE][SOCKET_SIZE];
-    struct ObjectSync message_buffer_lock;
-};
+    ObjectSync message_buffer_lock;
+} UserNode;
 
-void write_message(char *message);
-void *send_all_handler(void *param);
 void *user_handler(void *param);
-void *doublebuffer_handler(void *param);
+void *send_all_handler(void *none);
+void *doublebuffer_handler(void *none);
 
-void write_message(struct UserNode *user, char *message);
-void closesocket(struct UserNode *user);
+void write_message(UserNode *user, char *message);
+void closesocket(UserNode *user);
 
-void objectsync_init(struct ObjectSync *target);
-void reader_start(struct ObjectSync *target);
-void reader_end(struct ObjectSync *target);
-void writer_start(struct ObjectSync *target);
-void writer_end(struct ObjectSync *target);
+void objectsync_init(ObjectSync *target);
+void reader_start(ObjectSync *target);
+void reader_end(ObjectSync *target);
+void writer_start(ObjectSync *target);
+void writer_end(ObjectSync *target);
 
-void add_user(struct UserList *userlist, struct sockaddr_in address, int sockfd);
-void remove_user(struct UserList *userlist, struct UserNode *user);
+void add_user(UserList *userlist, struct sockaddr_in address, int sockfd);
+void remove_user(UserList *userlist, UserNode *user);
 #endif

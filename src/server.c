@@ -11,10 +11,10 @@
 #include "server.h"
 
 int sockfd = 0;
-struct UserList userlist;
+UserList userlist;
 char message_send_arr[QUEUE_SIZE][SOCKET_SIZE];
 pthread_t send_all_thread, doublebuffer_thread;
-struct ObjectSynchronize message_send_lock, userlist_lock;
+ObjectSync message_send_lock, userlist_lock;
 
 int main(int argc , char *argv[]) {
     //initialize
@@ -40,7 +40,7 @@ int main(int argc , char *argv[]) {
     listen(sockfd, 20);
     
     // add send_all thread
-    if(pthread_create(&(send_all_thread), NULL, (void *) send_all_handler, (void *) newuser) != 0) {
+    if(pthread_create(&(send_all_thread), NULL, (void *) send_all_handler, NULL) != 0) {
         printf("thread creation error\n");
         exit(-1);
     }
@@ -66,7 +66,7 @@ int main(int argc , char *argv[]) {
 /*handler*/
 
 void *user_handler(void *param) {
-    struct UserNode *user = (struct UserNode *)param;
+    UserNode *user = (struct UserNode *)param;
     char inputBuffer[SOCKET_SIZE] = {};
     char message[SOCKET_SIZE] = {};
     char nickname[20];
@@ -92,8 +92,8 @@ void *user_handler(void *param) {
     return NULL;
 }
 
-void *send_all_handler(void *param) {
-    struct UserNode *currentUser;
+void *send_all_handler(void *none) {
+    UserNode *currentUser;
     int idx;
     while(1) {
         writer_start(&message_send_lock);
@@ -125,8 +125,8 @@ void *send_all_handler(void *param) {
     return NULL;
 }
 
-void *doublebuffer_handler(void *param) {
-    struct UserNode *currentUser;
+void *doublebuffer_handler(void *none) {
+    UserNode *currentUser;
     int idx;
     while(1) {
         writer_start(&message_send_lock);
@@ -152,7 +152,7 @@ void *doublebuffer_handler(void *param) {
                         }
                         writer_end(&(currentUser->message_buffer_lock));
                     }
-                    outer:
+                    outer:;
                 }
                 reader_end(&userlist_lock);
             }
@@ -165,7 +165,7 @@ void *doublebuffer_handler(void *param) {
 
 /*utility function*/
 
-void write_message(struct UserNode *user, char *message) {
+void write_message(UserNode *user, char *message) {
     int idx;
     writer_start(user->message_buffer_lock);
     {
@@ -182,7 +182,7 @@ void write_message(struct UserNode *user, char *message) {
     writer_end(user->message_buffer_lock);
 }
 
-void closesocket(struct UserNode *user) {
+void closesocket(UserNode *user) {
     writer_start(&userlist_lock);
     {
         close(user->sockfd);
@@ -193,40 +193,40 @@ void closesocket(struct UserNode *user) {
 
 /*ObjectSync operation*/
 
-void objectsync_init(struct ObjectSync *target) {
+void objectsync_init(ObjectSync *target) {
     sem_init(&(target->reader), 0, 1);
     sem_init(&(target->writer), 0, 1);
     target->count = 0;
 }
 
-void reader_start(struct ObjectSync *target) {
-    sem_wait(target->reader);
+void reader_start(ObjectSync *target) {
+    sem_wait(&(target->reader));
     target->count += 1;
     if (target->count == 1)
         sem_wait(target->writer);
-    sem_post(target->reader);
+    sem_post(&(target->reader));
 }
 
-void reader_end(struct ObjectSync *target) {
-    sem_wait(target->reader);
+void reader_end(ObjectSync *target) {
+    sem_wait(&(target->reader));
     target->count -= 1;
     if (target->count == 0)
-        sem_post(target->writer);
-    sem_post(target->reader);
+        sem_post(&(target->writer));
+    sem_post(&(target->reader));
 }
 
-void writer_start(struct ObjectSync *target) {
-    sem_wait(target->writer);
+void writer_start(ObjectSync *target) {
+    sem_wait(&(target->writer));
 }
 
-void writer_end(struct ObjectSync *target) {
-    sem_post(target->writer);
+void writer_end(ObjectSync *target) {
+    sem_post(&(target->writer));
 }
 
 /*list operation*/
 
-void add_user(struct UserList *ulist, struct sockaddr_in addr, int sockfd) {
-    struct UserNode *newuser = (struct UserNode *) calloc(1, sizeof(struct UserNode));
+void add_user(UserList *ulist, struct sockaddr_in addr, int sockfd) {
+    UserNode *newuser = (UserNode *) calloc(1, sizeof(UserNode));
     newuser->address = addr;
     newuser->sockfd = sockfd;
     newuser->connected = 1;
@@ -252,7 +252,7 @@ void add_user(struct UserList *ulist, struct sockaddr_in addr, int sockfd) {
     }
 }
 
-void remove_user(struct UserList *ulist, struct UserNode *user) {
+void remove_user(UserList *ulist, UserNode *user) {
     writer_start(&userlist_lock);
     {
         if(ulist->firstUser == user) {
