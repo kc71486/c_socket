@@ -145,7 +145,7 @@ void *doublebuffer_handler(void *none) {
                                 memset(currentUser->message_buffer_arr[BUFFER_SIZE-1], 0, SOCKET_SIZE);
                                 idx ++;
                                 if(idx >= QUEUE_SIZE) {
-                                    writer_end(currentUser->message_buffer_lock);
+                                    writer_end(&(currentUser->message_buffer_lock));
                                     goto outer;
                                 }
                             }
@@ -167,7 +167,7 @@ void *doublebuffer_handler(void *none) {
 
 void write_message(UserNode *user, char *message) {
     int idx;
-    writer_start(user->message_buffer_lock);
+    writer_start(&(user->message_buffer_lock));
     {
         for(idx = 0; idx < BUFFER_SIZE && user->message_buffer_arr[idx][0] != 0; idx++);
         if(idx < BUFFER_SIZE) {
@@ -175,11 +175,11 @@ void write_message(UserNode *user, char *message) {
         }
         else {
             const char *err_msg = "[buffer exceeded, please wait and send again]";
-            printf("user buffer exceeded (address=%s:%d)\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+            printf("user buffer exceeded (address=%s:%d)\n", inet_ntoa(user->address.sin_addr), ntohs(user->address.sin_port));
             send(user->sockfd, err_msg, strlen(err_msg), 0);
         }
     }
-    writer_end(user->message_buffer_lock);
+    writer_end(&(user->message_buffer_lock));
 }
 
 void closesocket(UserNode *user) {
@@ -203,7 +203,7 @@ void reader_start(ObjectSync *target) {
     sem_wait(&(target->reader));
     target->count += 1;
     if (target->count == 1)
-        sem_wait(target->writer);
+        sem_wait(&(target->writer));
     sem_post(&(target->reader));
 }
 
