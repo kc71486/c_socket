@@ -105,13 +105,16 @@ void *send_all_handler(void *none) {
                     while(currentUser != NULL) {
                         if(currentUser->connected) {
                             send(currentUser->sockfd, message_send_arr[idx], sizeof(message_send_arr[idx]), 0);
+                            currentUser = currentUser->next;
                         }
                         else {
                             reader_end(&userlist_lock);
                             remove_user(&userlist, currentUser);
+                            UserNode *temp = currentUser->next;
+                            free(currentUser);
+                            currentUser = temp;
                             reader_start(&userlist_lock);
                         }
-                        currentUser = currentUser->next;
                     }
                 }
                 reader_end(&userlist_lock);
@@ -125,6 +128,11 @@ void *send_all_handler(void *none) {
     return NULL;
 }
 
+/**
+ * buffer between send and recieve
+ * requires both send and recieve lock to be released
+ * prevents send from stalling recieve
+ */
 void *doublebuffer_handler(void *none) {
     UserNode *currentUser;
     int idx;
