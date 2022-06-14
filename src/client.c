@@ -9,12 +9,19 @@
 #include <netinet/in.h>
 #include "client.h"
 
-const char *ADDRESS = "127.0.0.1";
 int sockfd = 0;
 
 int main(int argc , char *argv[]) {
     //initialize
     char nickname[20];
+    char *address;
+    if(argc >= 1) {
+        address = argv[0];
+    }
+    else {
+        address = "127.0.0.1";
+    }
+    
     //create socket 
     sockfd = socket(AF_INET , SOCK_STREAM , 0);
     if (sockfd == -1){
@@ -29,7 +36,7 @@ int main(int argc , char *argv[]) {
     memset(&client_addr, 0, c_addrlen);
     
     server_addr.sin_family = PF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(ADDRESS);
+    server_addr.sin_addr.s_addr = inet_addr(address);
     server_addr.sin_port = htons(8700);
     
     //connect to socket
@@ -49,7 +56,7 @@ int main(int argc , char *argv[]) {
     getsockname(sockfd, (struct sockaddr*)&client_addr, &c_addrlen);
     printf("connect to server %s:%d\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
     printf("you are %s your ip is %s:%d\n", nickname, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-    send(sockfd, nickname, sizeof(nickname), 0);
+    send(sockfd, nickname, SOCKET_SIZE, 0);
 
     pthread_t send_thread, recv_thread;
     if(pthread_create(&send_thread, NULL, (void *)send_func, NULL) != 0) {
@@ -76,14 +83,14 @@ void send_func() {
         fgets(message, sizeof(message), stdin);
         message[strcspn(message, "\n")] = 0;
         fflush(stdin);
-        send(sockfd, message, sizeof(message),0);
+        send(sockfd, message, sizeof(message), 0);
     }
 }
 
 void recv_func() {
-    char receiveMessage[128];
+    char receiveMessage[SOCKET_SIZE];
     while(1) {
-        recv(sockfd,receiveMessage,sizeof(receiveMessage),0);
+        recv(sockfd, receiveMessage, SOCKET_SIZE, 0);
         printf("%s\n",receiveMessage);
     }
 }

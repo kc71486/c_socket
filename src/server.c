@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -11,11 +12,16 @@
 
 int sockfd = 0;
 struct UserList userlist;
-char allmessage_arr[50][128];
+char message_send_arr[QUEUE_SIZE][SOCKET_SIZE];
+pthread_t send_all_thread, doublebuffer_thread;
+struct ObjectSynchronize message_send_lock, userlist_lock;
 
 int main(int argc , char *argv[]) {
     //initialize
     memset(&userlist, 0, sizeof(struct UserList));
+    objectsync_init(&message_send_lock);
+    objectsync_init(&userlist_lock);
+    
     //create socket
     sockfd = socket(AF_INET , SOCK_STREAM , 0);
     if (sockfd == -1){
@@ -31,124 +37,242 @@ int main(int argc , char *argv[]) {
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(8700);
     bind(sockfd, (struct sockaddr *)&server_addr, s_addrlen);
-    listen(sockfd,5);
-    // add send all
+    listen(sockfd, 20);
     
-    pthread_t send_all_thread;
+    // add send_all thread
     if(pthread_create(&(send_all_thread), NULL, (void *) send_all_handler, (void *) newuser) != 0) {
         printf("thread creation error\n");
         exit(-1);
     }
     
+    // add doublebuffer thread
+    if(pthread_create(&(doublebuffer_thread), NULL, doublebuffer_handler, NULL) != 0) {
+        printf("thread creation error\n");
+        exit(-1);
+    }
     
     // add clients
-    
     while(1){
         int clientSockfd = 0;
         clientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &c_addrlen);
         getpeername(clientSockfd, (struct sockaddr*) &client_addr, &c_addrlen);
         printf("connect to client %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         add_user(&userlist, client_addr, clientSockfd);
+        sched_yield();
     }
     return 0;
 }
 
-void *user_handle(void *param) {
+/*handler*/
+
+void *user_handler(void *param) {
     struct UserNode *user = (struct UserNode *)param;
-    char inputBuffer[128] = {};
-    char message[128] = {};
+    char inputBuffer[SOCKET_SIZE] = {};
+    char message[SOCKET_SIZE] = {};
     char nickname[20];
     int recvbyte = 0;
     
     recv(user->sockfd, inputBuffer, sizeof(inputBuffer), 0);
     strncpy(nickname, inputBuffer, sizeof(nickname));
     snprintf(message, sizeof(message), "[%s has joined]", nickname);
-    send_all(&userlist, message, sizeof(message));
-    
+    write_message(user, message);
     while(1) {
-        recvbyte = recv(user->sockfd, inputBuffer, sizeof(inputBuffer), 0);
+        recvbyte = recv(user->sockfd, inputBuffer, SOCKET_SIZE, 0);
         if(recvbyte == 0 || strcmp(inputBuffer, "?exit") == 0) {
-            snprintf(message, sizeof(message), "[%s has leaved]", nickname);
-            send_all(&userlist, message, sizeof(message));
+            snprintf(message, SOCKET_SIZE, "[%s has leaved]", nickname);
+            write_message(user, message);
             break;
         }
-        snprintf(message, sizeof(message), "<%s> %s", nickname, inputBuffer);
-        write_message(message);
+        snprintf(message, SOCKET_SIZE, "<%s> %s", nickname, inputBuffer);
+        write_message(user, message);
+        sched_yield();
     }
-    close(user->sockfd);
-    if(userlist.firstUser == user) {
-        user->next->prev = NULL;
-        userlist.firstUser = user->next;
-    }
-    else if(userlist.lastUser == user) {
-        user->prev->next = NULL;
-        userlist.lastUser = user->prev;
-    }
-    else {
-        user->next->prev = user->prev;
-        user->prev->next = user->next;
-    }
-    //free(user);
+    closesocket(user);
     
     return NULL;
 }
 
-void send_all(struct UserList *ulist, char *message, int messageSize) {
-    struct UserNode *currentUser = ulist->firstUser;
-    while(currentUser != NULL) {
-        send(currentUser->sockfd, message, messageSize, 0);
-        currentUser = currentUser->next;
-    }
-    printf("%s\n", message);
-}
-
-void write_message(char *message) {
-    int idx;
-    //write lock start
-    while(allmessage_arr[idx][0] != 0) {
-        idx += 1;
-    }
-    allmessage_arr[idx] = message;
-    //write lock end
-}
-
-void send_all_handler() {
-    struct UserList *ulist = userlist;
-    struct UserNode *currentUser = ulist->firstUser;
+void *send_all_handler(void *param) {
+    struct UserNode *currentUser;
     int idx;
     while(1) {
-        //write lock start
-        while(currentUser != NULL) {
-            idx = 0;
-            while(allmessage_arr[idx][0] != 0) {
-                send(currentUser->sockfd, allmessage_arr[idx], sizeof(allmessage_arr[idx]), 0);
-                idx += 1;
+        writer_start(&message_send_lock);
+        {
+            for(idx = 0; idx < QUEUE_SIZE && message_send_arr[idx][0] != 0; idx ++) { //expect this to be very slow
+                reader_start(&userlist_lock);
+                {
+                    currentUser = userlist.firstUser;
+                    while(currentUser != NULL) {
+                        if(currentUser->connected) {
+                            send(currentUser->sockfd, message_send_arr[idx], sizeof(message_send_arr[idx]), 0);
+                        }
+                        else {
+                            reader_end(&userlist_lock);
+                            remove_user(&userlist, currentUser);
+                            reader_start(&userlist_lock);
+                        }
+                        currentUser = currentUser->next;
+                    }
+                }
+                reader_end(&userlist_lock);
+                printf("%s\n", message_send_arr[idx]);
             }
-            currentUser = currentUser->next;
+            memset(&message_send_arr, 0, sizeof(message_send_arr));
         }
-        memset(&allmessage_arr, 0, sizeof(allmessage_arr));
-        //write lock end
-        printf("%s\n", message);
+        writer_end(&message_send_lock);
+        usleep(100);//max update rate 10000/s
     }
+    return NULL;
 }
+
+void *doublebuffer_handler(void *param) {
+    struct UserNode *currentUser;
+    int idx;
+    while(1) {
+        writer_start(&message_send_lock);
+        {
+            for(idx = 0; idx < QUEUE_SIZE && message_send_arr[idx][0] != 0; idx ++);
+            if(idx < QUEUE_SIZE) {
+                reader_start(&userlist_lock);
+                {
+                    currentUser = userlist.firstUser;
+                    while(currentUser != NULL) {
+                        writer_start(&(currentUser->message_buffer_lock));
+                        {
+                            while(currentUser->message_buffer_arr[0][0] != 0) {
+                                strncpy(message_send_arr[idx], currentUser->message_buffer_arr[0], SOCKET_SIZE);
+                                memmove(currentUser->message_buffer_arr[0], currentUser->message_buffer_arr[1], (BUFFER_SIZE-1)*SOCKET_SIZE);
+                                memset(currentUser->message_buffer_arr[BUFFER_SIZE-1], 0, SOCKET_SIZE);
+                                idx ++;
+                                if(idx >= QUEUE_SIZE) {
+                                    writer_end(currentUser->message_buffer_lock);
+                                    goto outer;
+                                }
+                            }
+                        }
+                        writer_end(&(currentUser->message_buffer_lock));
+                    }
+                    outer:
+                }
+                reader_end(&userlist_lock);
+            }
+        }
+        writer_end(&message_send_lock);
+        sched_yield();
+    }
+    return NULL;
+}
+
+/*utility function*/
+
+void write_message(struct UserNode *user, char *message) {
+    int idx;
+    writer_start(user->message_buffer_lock);
+    {
+        for(idx = 0; idx < BUFFER_SIZE && user->message_buffer_arr[idx][0] != 0; idx++);
+        if(idx < BUFFER_SIZE) {
+            strncpy(user->message_buffer_arr[idx], message, SOCKET_SIZE);
+        }
+        else {
+            const char *err_msg = "[buffer exceeded, please wait and send again]";
+            printf("user buffer exceeded (address=%s:%d)\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+            send(user->sockfd, err_msg, strlen(err_msg), 0);
+        }
+    }
+    writer_end(user->message_buffer_lock);
+}
+
+void closesocket(struct UserNode *user) {
+    writer_start(&userlist_lock);
+    {
+        close(user->sockfd);
+        user->connected = 0;
+    }
+    writer_end(&userlist_lock);
+}
+
+/*ObjectSync operation*/
+
+void objectsync_init(struct ObjectSync *target) {
+    sem_init(&(target->reader), 0, 1);
+    sem_init(&(target->writer), 0, 1);
+    target->count = 0;
+}
+
+void reader_start(struct ObjectSync *target) {
+    sem_wait(target->reader);
+    target->count += 1;
+    if (target->count == 1)
+        sem_wait(target->writer);
+    sem_post(target->reader);
+}
+
+void reader_end(struct ObjectSync *target) {
+    sem_wait(target->reader);
+    target->count -= 1;
+    if (target->count == 0)
+        sem_post(target->writer);
+    sem_post(target->reader);
+}
+
+void writer_start(struct ObjectSync *target) {
+    sem_wait(target->writer);
+}
+
+void writer_end(struct ObjectSync *target) {
+    sem_post(target->writer);
+}
+
+/*list operation*/
 
 void add_user(struct UserList *ulist, struct sockaddr_in addr, int sockfd) {
     struct UserNode *newuser = (struct UserNode *) calloc(1, sizeof(struct UserNode));
     newuser->address = addr;
     newuser->sockfd = sockfd;
-    if(ulist->lastUser == NULL) {
-        ulist->firstUser = newuser;
-        ulist->lastUser = newuser;
-        ulist->length = 1;
+    newuser->connected = 1;
+    objectsync_init(&(newuser->message_buffer_lock));
+    writer_start(&userlist_lock);
+    {
+        if(ulist->lastUser == NULL) { //only 1 user
+            ulist->firstUser = newuser;
+            ulist->lastUser = newuser;
+            ulist->length = 1;
+        }
+        else {
+            newuser->prev = ulist->lastUser;
+            ulist->lastUser->next = newuser;
+            ulist->lastUser = newuser;
+            ulist->length += 1;
+        }
     }
-    else {
-        newuser->prev = ulist->lastUser;
-        ulist->lastUser->next = newuser;
-        ulist->lastUser = newuser;
-        ulist->length += 1;
-    }
-    if(pthread_create(&(userlist.lastUser->userThread), NULL, user_handle, (void *) newuser) != 0) {
+    writer_end(&userlist_lock);
+    if(pthread_create(&(newuser->userThread), NULL, user_handler, (void *) newuser) != 0) {
         printf("thread creation error\n");
         exit(-1);
     }
+}
+
+void remove_user(struct UserList *ulist, struct UserNode *user) {
+    writer_start(&userlist_lock);
+    {
+        if(ulist->firstUser == user) {
+            if(user->next == NULL) { //only 1 user
+                ulist->firstUser = NULL;
+            }
+            else { //first user
+                user->next->prev = NULL;
+                ulist->firstUser = user->next;
+            }
+        }
+        else if(ulist->lastUser == user) { //last user
+            user->prev->next = NULL;
+            ulist->lastUser = user->prev;
+        }
+        else {
+            user->next->prev = user->prev;
+            user->prev->next = user->next;
+        }
+        ulist->length -= 1;
+    }
+    writer_end(&userlist_lock);
 }
