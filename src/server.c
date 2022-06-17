@@ -289,6 +289,7 @@ void remove_user(UserList *ulist, UserNode *user) {
         if(ulist->firstUser == user) {
             if(user->next == NULL) { //only 1 user
                 ulist->firstUser = NULL;
+                ulist->lastUser = NULL;
             }
             else { //first user
                 user->next->prev = NULL;

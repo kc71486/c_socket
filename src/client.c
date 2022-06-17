@@ -44,7 +44,7 @@ int main(int argc , char *argv[]) {
     memset(&server_addr, 0, s_addrlen);
     memset(&client_addr, 0, c_addrlen);
     
-    server_addr.sin_family = PF_INET;
+    server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr(address);
     server_addr.sin_port = htons(port);
     
@@ -100,7 +100,13 @@ void send_func() {
 void recv_func() {
     char receiveMessage[SOCKET_SIZE];
     while(1) {
-        recv(sockfd, receiveMessage, SOCKET_SIZE, 0);
-        printf("%s\n",receiveMessage);
+        recvbyte = recv(sockfd, receiveMessage, SOCKET_SIZE, 0);
+        if(recvbyte == 0) {
+            printf("exit");
+            break;
+        }
+        else {
+            printf("%s\n",receiveMessage);
+        }
     }
 }
