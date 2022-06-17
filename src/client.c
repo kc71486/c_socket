@@ -99,6 +99,7 @@ void send_func() {
 
 void recv_func() {
     char receiveMessage[SOCKET_SIZE];
+    int recvbyte;
     while(1) {
         recvbyte = recv(sockfd, receiveMessage, SOCKET_SIZE, 0);
         if(recvbyte == 0) {
