@@ -20,6 +20,12 @@ int main(int argc , char *argv[]) {
     memset(&userlist, 0, sizeof(struct UserList));
     objectsync_init(&message_send_lock);
     objectsync_init(&userlist_lock);
+    int port;
+    if(argc >= 2)
+        port = atoi(argv[1]);
+    else
+        port = 8700;
+    
     
     //create socket
     int sockfd = socket(AF_INET , SOCK_STREAM , 0);
@@ -34,7 +40,7 @@ int main(int argc , char *argv[]) {
     memset(&server_addr, 0, s_addrlen);
     server_addr.sin_family = PF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(8700);
+    server_addr.sin_port = htons(port);
     bind(sockfd, (struct sockaddr *)&server_addr, s_addrlen);
     listen(sockfd, 20);
     
