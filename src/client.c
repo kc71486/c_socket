@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -32,7 +33,8 @@ int main(int argc , char *argv[]) {
     //create socket 
     sockfd = socket(AF_INET , SOCK_STREAM , 0);
     if (sockfd == -1){
-        printf("Fail to create a socket.");
+        fprintf(stderr, "Fail to create a socket. (errno: %d)\n", errno);
+        exit(-1);
     }
     
     //socket setting
@@ -49,7 +51,7 @@ int main(int argc , char *argv[]) {
     //connect to socket
     int err = connect(sockfd,(struct sockaddr *)&server_addr, s_addrlen);
     if(err == -1){
-        printf("Connection error\n");
+        fprintf(stderr, "Connection error (errno: %d)\n", errno);
         exit(-1);
     }
     
@@ -68,11 +70,11 @@ int main(int argc , char *argv[]) {
 
     pthread_t send_thread, recv_thread;
     if(pthread_create(&send_thread, NULL, (void *)send_func, NULL) != 0) {
-        printf("thread creation error\n");
+        fprintf(stderr, "thread creation error (errno: %d)\n", errno);
         exit(-1);
     }
     if(pthread_create(&recv_thread, NULL, (void *)recv_func, NULL) != 0) {
-        printf("thread creation error\n");
+        fprintf(stderr, "thread creation error (errno: %d)\n", errno);
         exit(-1);
     }
     while(1) {

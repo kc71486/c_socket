@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/types.h>
@@ -46,13 +47,13 @@ int main(int argc , char *argv[]) {
     
     // add send_all thread
     if(pthread_create(&(send_all_thread), NULL, (void *) send_all_handler, NULL) != 0) {
-        printf("thread creation error\n");
+        fprintf(stderr, "thread creation error (errno: %d)\n", errno);
         exit(-1);
     }
     
     // add doublebuffer thread
     if(pthread_create(&(doublebuffer_thread), NULL, doublebuffer_handler, NULL) != 0) {
-        printf("thread creation error\n");
+        fprintf(stderr, "thread creation error (errno: %d)\n", errno);
         exit(-1);
     }
     
@@ -277,7 +278,7 @@ void add_user(UserList *ulist, struct sockaddr_in addr, int sockfd) {
     }
     writer_end(&userlist_lock);
     if(pthread_create(&(newuser->userThread), NULL, user_handler, (void *) newuser) != 0) {
-        printf("thread creation error\n");
+        fprintf(stderr, "thread creation error (errno: %d)\n", errno);
         exit(-1);
     }
 }
