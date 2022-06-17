@@ -19,7 +19,7 @@ int main(int argc , char *argv[]) {
     if(argc >= 2) {
         address = argv[1];
         if(argc >= 3) {
-            port = argv[2];
+            port = atoi(argv[2]);
         }
         else {
             port = 8700;
