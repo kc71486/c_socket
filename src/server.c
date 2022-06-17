@@ -10,7 +10,6 @@
 #include <netinet/in.h>
 #include "server.h"
 
-int sockfd = 0;
 UserList userlist;
 char message_send_arr[QUEUE_SIZE][SOCKET_SIZE];
 pthread_t send_all_thread, doublebuffer_thread;
@@ -23,7 +22,7 @@ int main(int argc , char *argv[]) {
     objectsync_init(&userlist_lock);
     
     //create socket
-    sockfd = socket(AF_INET , SOCK_STREAM , 0);
+    int sockfd = socket(AF_INET , SOCK_STREAM , 0);
     if (sockfd == -1){
         printf("Fail to create a socket.\n");
     }
@@ -56,8 +55,8 @@ int main(int argc , char *argv[]) {
         int clientSockfd = 0;
         clientSockfd = accept(sockfd, (struct sockaddr*) &client_addr, &c_addrlen);
         getpeername(clientSockfd, (struct sockaddr*) &client_addr, &c_addrlen);
-        printf("connect to client %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         add_user(&userlist, client_addr, clientSockfd);
+        printf("connect to client %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         sched_yield();
     }
     return 0;
@@ -65,6 +64,10 @@ int main(int argc , char *argv[]) {
 
 /*handler*/
 
+/**
+ * recieve and execute the message
+ * isn't blocked by send thread at all
+ */
 void *user_handler(void *param) {
     UserNode *user = (struct UserNode *)param;
     char inputBuffer[SOCKET_SIZE] = {};
@@ -83,6 +86,10 @@ void *user_handler(void *param) {
             write_message(user, message);
             break;
         }
+        if(strcmp(inputBuffer, "?help") == 0) {
+            snprintf(message, SOCKET_SIZE, "[@%s, nobody will help you]", nickname);
+            write_message(user, message);
+        }
         snprintf(message, SOCKET_SIZE, "<%s> %s", nickname, inputBuffer);
         write_message(user, message);
         sched_yield();
@@ -92,6 +99,9 @@ void *user_handler(void *param) {
     return NULL;
 }
 
+/**
+ * send stored message to all user
+ */
 void *send_all_handler(void *none) {
     UserNode *currentUser;
     int idx;
@@ -106,14 +116,6 @@ void *send_all_handler(void *none) {
                         if(currentUser->connected) {
                             send(currentUser->sockfd, message_send_arr[idx], sizeof(message_send_arr[idx]), 0);
                             currentUser = currentUser->next;
-                        }
-                        else {
-                            reader_end(&userlist_lock);
-                            remove_user(&userlist, currentUser);
-                            UserNode *temp = currentUser->next;
-                            free(currentUser);
-                            currentUser = temp;
-                            reader_start(&userlist_lock);
                         }
                     }
                 }
@@ -132,6 +134,8 @@ void *send_all_handler(void *none) {
  * buffer between send and recieve
  * requires both send and recieve lock to be released
  * prevents send from stalling recieve
+ * order of storing into message_buffer_arr isn't promised
+ * remove user if disconnected
  */
 void *doublebuffer_handler(void *none) {
     UserNode *currentUser;
@@ -159,6 +163,18 @@ void *doublebuffer_handler(void *none) {
                             }
                         }
                         writer_end(&(currentUser->message_buffer_lock));
+                        
+                        if(currentUser->connected) { //disconnect will always be after write
+                            currentUser = currentUser->next;
+                        }
+                        else {
+                            reader_end(&userlist_lock);
+                            remove_user(&userlist, currentUser);//writer &userlist_lock
+                            UserNode *temp = currentUser->next;
+                            free(currentUser);
+                            currentUser = temp;
+                            reader_start(&userlist_lock);
+                        }
                     }
                     outer:;
                 }
