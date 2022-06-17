@@ -15,8 +15,15 @@ int main(int argc , char *argv[]) {
     //initialize
     char nickname[20];
     char *address;
-    if(argc >= 1) {
-        address = argv[0];
+    int port;
+    if(argc >= 2) {
+        address = argv[1];
+        if(argc >= 3) {
+            port = argv[2];
+        }
+        else {
+            port = 8700;
+        }
     }
     else {
         address = "127.0.0.1";
@@ -37,12 +44,13 @@ int main(int argc , char *argv[]) {
     
     server_addr.sin_family = PF_INET;
     server_addr.sin_addr.s_addr = inet_addr(address);
-    server_addr.sin_port = htons(8700);
+    server_addr.sin_port = htons(port);
     
     //connect to socket
     int err = connect(sockfd,(struct sockaddr *)&server_addr, s_addrlen);
     if(err == -1){
         printf("Connection error\n");
+        exit(-1);
     }
     
     //enter nickname
